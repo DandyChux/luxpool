@@ -37,7 +37,7 @@ impl ThreadPool {
         let mut workers = Vec::with_capacity(size);
 
         for id in 0..size {
-            // TODO: instantiate your workers here
+            // TODO: instantiate workers here
             workers.push(Worker::new(id, Arc::clone(&shared_receiver)));
         }
 
@@ -54,6 +54,7 @@ impl ThreadPool {
         F: FnOnce() + Send + 'static,
     {
         // TODO: Box the closure `f` into a `Job` and send it down the channel
+        !unimplemented!()
     }
 }
 
@@ -88,6 +89,6 @@ mod tests {
     #[test]
     fn test_thread_pool_executes() {
         let pool = ThreadPool::new(4);
-        // Add your test logic here to make sure it works!
+        // Add test logic here to make sure it works!
     }
 }
