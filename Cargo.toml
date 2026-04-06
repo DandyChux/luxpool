@@ -1,0 +1,19 @@
+[package]
+name = "luxpool"
+version = "0.1.0"
+edition = "2024"
+authors = ["Chukwuma Okoroji <dandychux@gmail.com>"]
+
+# REQUIRED BY CRATES.IO:
+description = "A lightweight, zero-dependency thread pool and dynamic task queue."
+license = "MIT OR Apache-2.0" # This dual-license is the Rust ecosystem standard
+
+# HIGHLY RECOMMENDED:
+readme = "README.md"
+repository = "https://github.com/dandychux/luxpool"
+homepage = "https://github.com/dandychux/luxpool"
+
+keywords = ["concurrency", "thread-pool", "parallel", "tasks", "queue"]
+categories = ["concurrency", "asynchronous"]
+
+[dependencies]
