@@ -116,6 +116,24 @@ impl ThreadPool {
 }
 
 // ==========================================
+// Scoped Join Handle
+// ==========================================
+
+pub struct ScopedJoinHandle<T> {
+    receiver: mpsc::Receiver<T>,
+}
+
+impl<T> ScopedJoinHandle<T> {
+    /// Waits for the associated thread to finish and returns its reult.
+    /// Panics if the worker thread panicked before returning the value
+    pub fn join(self) -> T {
+        self.receiver
+            .recv()
+            .expect("Worker thread panicked before returning a value!")
+    }
+}
+
+// ==========================================
 // Scope
 // ==========================================
 
@@ -136,16 +154,20 @@ impl<'pool, 'env> Scope<'pool, 'env> {
     ///
     /// The closure `f` is bound to the `'env` lifetime, meaning it can safely
     /// capture references to local variables defined outside the scope.
-    pub fn spawn<F>(&self, f: F)
+    pub fn spawn<F, T>(&self, f: F) -> ScopedJoinHandle<T>
     where
-        F: FnOnce() + Send + 'env,
+        F: FnOnce() -> T + Send + 'env,
+        T: Send + 'env,
     {
+        let (result_tx, result_rx) = mpsc::channel();
+
         let tx_clone = self.tx.clone();
 
         // Wrap the user's closure in a new closure that drops the Sender when finished
         let wrapper = move || {
-            f();
-            drop(tx_clone); // Signal that this specific job is complete
+            let result = f();
+            let _ = result_tx.send(result);
+            drop(tx_clone); // Signal the Scope that job is done
         };
 
         // Box the closure (it currently has the temporary 'env lifetime)
@@ -170,6 +192,10 @@ impl<'pool, 'env> Scope<'pool, 'env> {
             .sender
             .send(static_job)
             .expect("ThreadPool panicked");
+
+        ScopedJoinHandle {
+            receiver: result_rx,
+        }
     }
 }
 
