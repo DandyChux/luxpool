@@ -26,7 +26,9 @@ impl<T> DynamicQueue<T> {
     /// Returns `None` if the queue is entirely empty, signaling to the worker
     /// thread that all processing is complete.
     pub fn pop(&self) -> Option<T> {
-        // TODO: Lock the mutex, pop an item off the Vec, and return it
-        unimplemented!()
+        match self.items.lock() {
+            Ok(mut queue) => queue.pop(),
+            Err(poisoned) => poisoned.into_inner().pop(),
+        }
     }
 }
