@@ -21,7 +21,7 @@ pub(crate) type Job = Box<dyn FnOnce() + Send + 'static>;
 /// [`ThreadPool::scope`] to safely borrow local variables from the surrounding environment.
 pub struct ThreadPool {
     workers: Vec<Worker>,
-    pub(crate) sender: mpsc::Sender<Job>,
+    pub(crate) sender: Option<mpsc::Sender<Job>>,
 }
 
 impl ThreadPool {
@@ -47,7 +47,10 @@ impl ThreadPool {
             workers.push(Worker::new(id, Arc::clone(&shared_receiver)));
         }
 
-        ThreadPool { workers, sender }
+        ThreadPool {
+            workers,
+            sender: Some(sender),
+        }
     }
 
     /// Submits a closure to the thread pool for execution.
@@ -62,6 +65,8 @@ impl ThreadPool {
     {
         let job = Box::new(f);
         self.sender
+            .as_ref()
+            .unwrap()
             .send(job)
             .expect("ThreadPool has been shut down");
     }
@@ -112,6 +117,19 @@ impl ThreadPool {
         // It is now 100% safe to return, because all worker threads are guaranteed
         // to be finished with the borrowed variables!
         result
+    }
+}
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        // Drop sender, disconnect the channel
+        drop(self.sender.take());
+
+        for worker in &mut self.workers {
+            if let Some(thread) = worker.thread.take() {
+                thread.join().unwrap();
+            }
+        }
     }
 }
 
@@ -190,6 +208,8 @@ impl<'pool, 'env> Scope<'pool, 'env> {
         // Send the "static" job to the thread pool
         self.pool
             .sender
+            .as_ref()
+            .unwrap()
             .send(static_job)
             .expect("ThreadPool panicked");
 
@@ -206,8 +226,7 @@ impl<'pool, 'env> Scope<'pool, 'env> {
 struct Worker {
     #[allow(dead_code)]
     id: usize,
-    #[allow(dead_code)]
-    thread: thread::JoinHandle<()>,
+    thread: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker {
@@ -237,7 +256,10 @@ impl Worker {
             }
         });
 
-        Worker { id, thread }
+        Worker {
+            id,
+            thread: Some(thread),
+        }
     }
 }
 
