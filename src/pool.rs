@@ -137,6 +137,7 @@ impl Drop for ThreadPool {
 // Scoped Join Handle
 // ==========================================
 
+/// A join handle for a task spawned on a [`ThreadPool`] using a [`Scope`].
 pub struct ScopedJoinHandle<T> {
     receiver: mpsc::Receiver<T>,
 }
@@ -199,7 +200,7 @@ impl<'pool, 'env> Scope<'pool, 'env> {
             let raw_ptr = Box::into_raw(job);
 
             // Cast the pointer to pretend the trait object has a 'static lifetime
-            let static_ptr = raw_ptr as *mut (dyn FnOnce() + Send + 'static);
+            let static_ptr: *mut (dyn FnOnce() + Send + 'static) = std::mem::transmute(raw_ptr);
 
             // Re-box it with the fake 'static lifetime
             Box::from_raw(static_ptr)
@@ -273,7 +274,7 @@ mod tests {
 
     #[test]
     fn test_thread_pool_executes() {
-        let pool = ThreadPool::new(4);
+        let _pool = ThreadPool::new(4);
         // Add test logic here to make sure it works!
     }
 }
